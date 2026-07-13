@@ -1,0 +1,54 @@
+{
+  "schemaName": "CUSTOMER_ORDERS",
+  "tables": [
+    {
+      "name": "CUSTOMERS",
+      "columns": [
+        { "name": "CUSTOMER_ID", "type": "NUMBER", "length": 10, "nullable": false },
+        { "name": "FULL_NAME", "type": "VARCHAR2", "length": 200, "nullable": false },
+        { "name": "EMAIL", "type": "VARCHAR2", "length": 320, "nullable": true },
+        { "name": "SIGNUP_DATE", "type": "DATE", "length": null, "nullable": false },
+        { "name": "NOTES", "type": "CLOB", "length": null, "nullable": true },
+        { "name": "LOYALTY_TIER", "type": "VARCHAR2", "length": 20, "nullable": true }
+      ],
+      "constraints": [
+        { "name": "PK_CUSTOMERS", "type": "P", "condition": null },
+        { "name": "CK_LOYALTY_TIER", "type": "C", "condition": "LOYALTY_TIER IN ('BRONZE','SILVER','GOLD','PLATINUM')" }
+      ],
+      "rawDdl": "CREATE TABLE CUSTOMERS (\n  CUSTOMER_ID NUMBER(10) NOT NULL,\n  FULL_NAME VARCHAR2(200) NOT NULL,\n  EMAIL VARCHAR2(320),\n  SIGNUP_DATE DATE NOT NULL,\n  NOTES CLOB,\n  LOYALTY_TIER VARCHAR2(20),\n  CONSTRAINT PK_CUSTOMERS PRIMARY KEY (CUSTOMER_ID),\n  CONSTRAINT CK_LOYALTY_TIER CHECK (LOYALTY_TIER IN ('BRONZE','SILVER','GOLD','PLATINUM'))\n);"
+    },
+    {
+      "name": "ORDERS",
+      "columns": [
+        { "name": "ORDER_ID", "type": "NUMBER", "length": 12, "nullable": false },
+        { "name": "CUSTOMER_ID", "type": "NUMBER", "length": 10, "nullable": false },
+        { "name": "ORDER_DATE", "type": "DATE", "length": null, "nullable": false },
+        { "name": "STATUS", "type": "VARCHAR2", "length": 15, "nullable": false },
+        { "name": "TOTAL_AMOUNT", "type": "NUMBER", "length": null, "nullable": false, "precision": 12, "scale": 2 },
+        { "name": "SHIPPING_ADDRESS", "type": "VARCHAR2", "length": 500, "nullable": true },
+        { "name": "METADATA", "type": "XMLTYPE", "length": null, "nullable": true }
+      ],
+      "constraints": [
+        { "name": "PK_ORDERS", "type": "P", "condition": null },
+        { "name": "FK_ORDERS_CUSTOMER", "type": "R", "condition": "REFERENCES CUSTOMERS(CUSTOMER_ID)" }
+      ],
+      "rawDdl": "CREATE TABLE ORDERS (\n  ORDER_ID NUMBER(12) NOT NULL,\n  CUSTOMER_ID NUMBER(10) NOT NULL,\n  ORDER_DATE DATE NOT NULL,\n  STATUS VARCHAR2(15) NOT NULL,\n  TOTAL_AMOUNT NUMBER(12,2) NOT NULL,\n  SHIPPING_ADDRESS VARCHAR2(500),\n  METADATA XMLTYPE,\n  CONSTRAINT PK_ORDERS PRIMARY KEY (ORDER_ID),\n  CONSTRAINT FK_ORDERS_CUSTOMER FOREIGN KEY (CUSTOMER_ID) REFERENCES CUSTOMERS(CUSTOMER_ID)\n);"
+    },
+    {
+      "name": "ORDER_ITEMS",
+      "columns": [
+        { "name": "ORDER_ITEM_ID", "type": "NUMBER", "length": 14, "nullable": false },
+        { "name": "ORDER_ID", "type": "NUMBER", "length": 12, "nullable": false },
+        { "name": "PRODUCT_SKU", "type": "VARCHAR2", "length": 50, "nullable": false },
+        { "name": "QUANTITY", "type": "NUMBER", "length": 6, "nullable": false },
+        { "name": "UNIT_PRICE", "type": "NUMBER", "length": null, "nullable": false, "precision": 10, "scale": 2 },
+        { "name": "DISCOUNT_PCT", "type": "NUMBER", "length": null, "nullable": true, "precision": 5, "scale": 2 }
+      ],
+      "constraints": [
+        { "name": "PK_ORDER_ITEMS", "type": "P", "condition": null },
+        { "name": "FK_ITEMS_ORDER", "type": "R", "condition": "REFERENCES ORDERS(ORDER_ID)" }
+      ],
+      "rawDdl": "CREATE TABLE ORDER_ITEMS (\n  ORDER_ITEM_ID NUMBER(14) NOT NULL,\n  ORDER_ID NUMBER(12) NOT NULL,\n  PRODUCT_SKU VARCHAR2(50) NOT NULL,\n  QUANTITY NUMBER(6) NOT NULL,\n  UNIT_PRICE NUMBER(10,2) NOT NULL,\n  DISCOUNT_PCT NUMBER(5,2),\n  CONSTRAINT PK_ORDER_ITEMS PRIMARY KEY (ORDER_ITEM_ID),\n  CONSTRAINT FK_ITEMS_ORDER FOREIGN KEY (ORDER_ID) REFERENCES ORDERS(ORDER_ID)\n);"
+    }
+  ]
+}
