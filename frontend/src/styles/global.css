@@ -1,85 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
 :root {
-    --oracle: #FF6B52;
-    --oracle-glow: rgba(255, 107, 82, 0.4);
-    --amber: #FFB648;
-    --amber-glow: rgba(255, 182, 72, 0.35);
-    --snowflake: #5CCBE3;
-    --snowflake-glow: rgba(92, 203, 227, 0.4);
-    --success: #2FE0A6;
-    --success-glow: rgba(47, 224, 166, 0.35);
-    --fail: #FF4D6D;
-    --fail-glow: rgba(255, 77, 109, 0.35);
-    --waiting: #A49AF2;
-    --waiting-glow: rgba(164, 154, 242, 0.4);
-  
-    /* Monochrome base — near-black, glossy grays, matching the reference */
-    --bg: #060607;
-    --bg-mid: #0E0F12;
-    --panel: linear-gradient(155deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015));
-    --panel-raised: rgba(255, 255, 255, 0.06);
-    --border: rgba(255, 255, 255, 0.09);
-    --border-strong: rgba(255, 255, 255, 0.22);
-    --text: #F5F5F7;
-    --text-muted: #9A9CA5;
-    --text-faint: #58595F;
-  
-    --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 20px 48px rgba(0, 0, 0, 0.55);
-    --shadow-lg: 0 40px 90px rgba(0, 0, 0, 0.65);
-  
-    --font-display: "Inter", -apple-system, sans-serif;
-    --font-mono: "IBM Plex Mono", "SFMono-Regular", monospace;
-  }
-  
-  * { box-sizing: border-box; }
-  
-  html, body, #root {
-    height: 100%;
-    margin: 0;
-  }
-  
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-display);
-    -webkit-font-smoothing: antialiased;
-    position: relative;
-    overflow-x: hidden;
-  }
-  
-  /* Soft directional sheen instead of colorful orbs — monochrome, glossy */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background:
-      radial-gradient(900px 500px at 20% -10%, rgba(255,255,255,0.05), transparent 60%),
-      radial-gradient(700px 500px at 100% 10%, var(--snowflake-glow), transparent 65%),
-      radial-gradient(600px 500px at 0% 100%, var(--oracle-glow), transparent 65%),
-      linear-gradient(180deg, var(--bg-mid) 0%, var(--bg) 60%);
-    opacity: 0.5;
-  }
-  
-  #root {
-    position: relative;
-    z-index: 1;
-  }
-  
-  button { font-family: inherit; }
-  
-  ::selection { background: var(--amber); color: #060607; }
-  
-  a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
-    outline: 2px solid var(--amber);
-    outline-offset: 2px;
-  }
-  
-  @media (prefers-reduced-motion: reduce) {
-    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
-  }
-  
-  code, .mono { font-family: var(--font-mono); }
-  
-  .perspective-scene { perspective: 2000px; }
+  /* ---- Palette: warm cream / charcoal ink / soft gold ---- */
+  --bg: #F5F0E4;            /* page background — warm cream */
+  --surface: #FBF8F0;       /* panels / cards */
+  --surface-sunken: #EFE9D9;/* selects, code blocks, insets */
+  --border: #E6DECB;        /* soft warm hairline */
+  --border-strong: #D4C8AB;
+
+  --ink: #2E2A24;           /* headings / primary */
+  --text: #3B362E;          /* body */
+  --text-muted: #857E72;    /* secondary */
+  --text-faint: #A9A08C;    /* labels / captions */
+
+  --gold: #E0C865;          /* the accent */
+  --gold-strong: #CBB047;   /* hover / emphasis */
+  --gold-soft: #F1E7C6;     /* pale fill for active states */
+
+  /* ---- Semantic colors mapped onto the palette (used by existing classes) ---- */
+  --oracle: #2E2A24;        /* extract tag — charcoal */
+  --amber: #B7941F;         /* convert/validate + running — readable deep gold */
+  --snowflake: #B7941F;     /* deploy tag — deep gold */
+  --success: #5E7A4B;       /* muted olive */
+  --fail: #B4553E;          /* muted rust */
+  --waiting: #9A8748;       /* muted ochre */
+
+  /* soft fills for pills + dots */
+  --oracle-light: #ECE4D3;
+  --amber-light: #F1E7C6;
+  --snowflake-light: #F1E7C6;
+  --success-light: #E4E8D5;
+  --fail-light: #F1DED4;
+  --waiting-light: #EFE6CC;
+
+  /* mids for the pipeline connector */
+  --oracle-mid: #D8CBAE;
+  --amber-mid: #E0C865;
+  --snowflake-mid: #D8CBAE;
+  --waiting-mid: #CDBE8F;
+
+  --shadow-sm: 0 1px 2px rgba(70, 58, 30, 0.05);
+  --shadow-md: 0 4px 14px rgba(70, 58, 30, 0.07);
+  --shadow-lg: 0 8px 24px rgba(70, 58, 30, 0.06);
+
+  --font-display: "Space Grotesk", "Inter", -apple-system, system-ui, sans-serif;
+  --font-body: "Inter", -apple-system, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root { position: relative; z-index: 1; }
+
+button { font-family: inherit; }
+
+::selection { background: var(--gold); color: var(--ink); }
+
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--gold-strong);
+  outline-offset: 2px;
+}
+
+code, .mono { font-family: var(--font-mono); }
+
+/* ---- Neutralize all inherited 3D so no JSX changes are needed ---- */
+.perspective-scene { perspective: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

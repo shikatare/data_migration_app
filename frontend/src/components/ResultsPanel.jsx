@@ -1,20 +1,65 @@
-export default function ResultsPanel({ record }) {
-    if (!record) {
-      return (
-        <div className="results-panel results-empty">
-          <p>No completed run yet. Results — extracted schema, converted DDL, validation diffs, deploy status — will appear here.</p>
-        </div>
-      );
-    }
-  
-    const { extract, convert, validateDeploy, overallStatus } = record;
-  
+export default function ResultsPanel({ record, summary }) {
+  if (!record) {
     return (
-      <div className="results-panel">
-        <div className="results-status">
-          <span className="mono">RUN {record.runId}</span>
-          <span className={`status-pill status-${overallStatus}`}>{overallStatus.replace("_", " ")}</span>
-        </div>
+      <div className="results-panel results-empty">
+        {summary ? (
+          <section className="results-section">
+            <h4>Agent summary</h4>
+            <p className="results-muted">{summary}</p>
+          </section>
+        ) : (
+          <p>No completed run yet. Results — extracted schema, converted DDL, validation diffs, deploy status — will appear here.</p>
+        )}
+      </div>
+    );
+  }
+
+  const { extract, convert, validateDeploy, overallStatus } = record;
+
+  return (
+    <div className="results-panel">
+      <div className="results-status">
+        <span className="mono">RUN {record.runId}</span>
+        <span className={`status-pill status-${overallStatus}`}>{overallStatus.replace("_", " ")}</span>
+      </div>
+
+      {summary && (
+        <section className="results-section">
+          <h4>Agent summary</h4>
+          <p className="results-muted">{summary}</p>
+        </section>
+      )}
+
+      {record.confidence != null && (
+        <section className="results-section">
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 30, fontWeight: 700, fontFamily: "var(--font-display)" }}>
+              {Math.round(record.confidence * 100)}%
+            </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-faint)" }}>
+                Conversion confidence
+              </div>
+              <div className="results-muted">{validateDeploy?.scoring?.recommendation}</div>
+            </div>
+            <a className="btn btn-primary"
+               href={`/api/pipeline/runs/${record.runId}/report`}
+               style={{ textDecoration: "none", display: "inline-block" }}>
+              Download review report
+            </a>
+          </div>
+          {validateDeploy?.scoring?.reviewItems?.length > 0 && (
+            <ul className="results-list" style={{ marginTop: 12 }}>
+              {validateDeploy.scoring.reviewItems.map((r, i) => (
+                <li key={i}>
+                  <span className="mono results-tag">{r.table}.{r.column}</span>
+                  {r.sourceType} → {r.snowflakeType} ({Math.round(r.confidence * 100)}%) — {r.note}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
   
         {extract && (
           <section className="results-section">

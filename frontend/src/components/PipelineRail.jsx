@@ -1,5 +1,5 @@
 const STAGES = [
-    { key: "extract", label: "Extract", sub: "Oracle DDL pull", tint: "oracle" },
+  { key: "extract", label: "Extract", sub: "MySQL DDL pull", tint: "oracle" },
     { key: "convert", label: "Convert", sub: "Cortex-style LLM", tint: "amber" },
     { key: "validate", label: "Validate", sub: "Syntax + diff", tint: "amber" },
     { key: "deploy", label: "Deploy", sub: "Snowflake apply", tint: "snowflake" },

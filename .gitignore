@@ -1,0 +1,20 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Secrets — never commit
+backend/.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Runtime data
+backend/app/data/runs/runs.json
+
+# OS
+.DS_Store
+backend-node-old/
+frontend/node_modules/

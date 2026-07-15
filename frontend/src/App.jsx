@@ -13,7 +13,7 @@ export default function App() {
   const [runs, setRuns] = useState([]);
   const [activeRunId, setActiveRunId] = useState(null);
 
-  const { events, runComplete, joinRun } = usePipelineSocket();
+  const { events, runComplete, runSummary, joinRun } = usePipelineSocket();
 
   const refreshRuns = useCallback(async () => {
     const res = await fetch("/api/pipeline/runs");
@@ -48,27 +48,24 @@ export default function App() {
   }, [events]);
 
   const isRunning = activeRunId && !runComplete;
-  const awaitingApproval = statuses.deploy === "waiting";
 
-  const startRun = async (approved) => {
-    const res = await fetch("/api/pipeline/runs", {
+  const startRun = async () => {
+    const res = await fetch("/api/pipeline/agentic-runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ schemaName: selectedSchema, approved }),
+      body: JSON.stringify({ schemaName: selectedSchema, approved: true }),
     });
     const data = await res.json();
     setActiveRunId(data.runId);
     joinRun(data.runId);
   };
 
-  const approveDeploy = () => startRun(true);
-
   return (
     <div className="shell">
       <header className="topbar">
         <div className="topbar-title">
           <span className="topbar-mark">
-            <span style={{ color: "var(--oracle)" }}>Oracle</span>
+          <span style={{ color: "var(--oracle)" }}>MySQL</span>
             <span className="topbar-arrow">→</span>
             <span style={{ color: "var(--snowflake)" }}>Snowflake</span>
           </span>
@@ -76,7 +73,7 @@ export default function App() {
         </div>
         {config && (
           <div className="topbar-modes mono">
-            <ModePill label="oracle" value={config.oracleMode} />
+            <ModePill label="mysql" value={config.mysqlMode} />
             <ModePill label="snowflake" value={config.snowflakeMode} />
             <ModePill label="llm" value={config.llmProvider} />
           </div>
@@ -93,9 +90,7 @@ export default function App() {
                 selectedSchema={selectedSchema}
                 onSelectSchema={setSelectedSchema}
                 onStartRun={startRun}
-                onApprove={approveDeploy}
                 isRunning={isRunning}
-                awaitingApproval={awaitingApproval}
               />
             </section>
 
