@@ -215,9 +215,62 @@ per-table confidence breakdown, and a reviewer sign-off section.
 streaming (Socket.IO), the confidence scoring UI, and the report
 generation feature all function together.
 
+
 ---
 
-## 8. Checkpoint 7 — Failure handling (governance / safety check)
+## 7. Checkpoint 7 — Review-before-deploy mode
+
+With the server and frontend running (same setup as Checkpoint 6):
+
+1. In the console, check **"Review DDL before deploy"** before selecting a
+   schema.
+2. Select a schema and click **Run migration**.
+
+**Expected:** Extract and Convert run exactly as before, but instead of
+continuing automatically, the screen replaces the Run Log / Results panels
+with a **DDL review editor** — one editable text box per table, showing the
+exact converted Snowflake DDL.
+
+3. Without changing anything, click **Approve & Continue**.
+
+**Expected:** Validate and Deploy proceed normally, reaching `success`, with
+the confidence panel and report download appearing as usual.
+
+**Pass criteria:** the pipeline visibly pauses after Convert and only
+proceeds once you click Approve & Continue — confirming a human checkpoint
+genuinely sits between conversion and deployment, not just cosmetically.
+
+**What this proves:** a reviewer can inspect (and, if needed, edit) the
+AI's proposed conversion before anything touches the target system — this
+closes the "how does someone act on a flagged item" gap from Section 12 of
+the project report; it is no longer a limitation.
+
+### 7.1 Sub-check — editing is respected
+
+1. Run again with review mode checked.
+2. When the editor appears, deliberately change one table's DDL (e.g. add a
+   `CHECK` constraint, or fix a flagged column type).
+3. Click **Approve & Continue**.
+
+**Expected:** the deployed table in Snowflake reflects your edited DDL, not
+the original AI-generated version — confirm via `DESCRIBE TABLE` /
+`GET_DDL()` in Snowflake.
+
+### 7.2 Sub-check — a bad edit is caught, not silently deployed
+
+1. Run again with review mode checked.
+2. When the editor appears, delete a column from one table's DDL text.
+3. Click **Approve & Continue**.
+
+**Expected:** validation fails (structural diff catches the missing
+column), and the editor **reappears** with the specific error shown,
+rather than the pipeline deploying the broken schema or crashing.
+
+**Pass criteria:** the run does *not* appear in the completed Audit trail
+until a valid version is approved — confirming the system never silently
+deploys something it flagged as broken.
+
+## 8. Checkpoint 8 — Failure handling (governance / safety check)
 
 Run the same schema a second time without dropping its Snowflake tables
 first.
