@@ -1,4 +1,4 @@
-#Migration Agent — Baseline Checkpoints
+## Migration Agent — Baseline Checkpoints
 
 Purpose: a reproducible set of checkpoints to verify the MySQL → Snowflake
 Migration Agent is working correctly. Each checkpoint has exact commands,
