@@ -1,4 +1,4 @@
-"""AWS DynamoDB storage adapter — implement with boto3 when STORAGE_MODE=aws."""
+
 import os
 
 

@@ -1,9 +1,4 @@
-"""Generates a downloadable PDF conversion-review report from a run record.
 
-Built for a human reviewer: overall confidence, the checks performed, a
-per-table and per-column confidence breakdown, the items that need review,
-and a sign-off block. Styled in the app's cream/charcoal/gold palette.
-"""
 import io
 from datetime import datetime
 from reportlab.lib import colors
@@ -72,7 +67,6 @@ def build_report(record: dict) -> bytes:
     convert = record.get("convert") or {}
     overall = scoring.get("overallConfidence")
 
-    # ---- Header ----
     story.append(Paragraph("MySQL &rarr; Snowflake Migration", ss["H1x"]))
     story.append(Paragraph("Conversion Review Report", ss["Subx"]))
     story.append(HRFlowable(width="100%", thickness=1, color=GOLD, spaceAfter=10))
@@ -87,7 +81,6 @@ def build_report(record: dict) -> bytes:
         ["Recommendation", scoring.get("recommendation", "—")],
     ]))
 
-    # ---- Checks performed ----
     story.append(Paragraph("Validation checks performed", ss["H2x"]))
     syntax_errors = vd.get("syntaxErrors", [])
     diff_issues = vd.get("diffIssues", [])
@@ -113,7 +106,6 @@ def build_report(record: dict) -> bytes:
     ]))
     story.append(ct)
 
-    # ---- Per-table confidence ----
     story.append(Paragraph("Per-table confidence", ss["H2x"]))
     rows = [["Table", "Cols", "Confidence", "Level"]]
     for t in scoring.get("tables", []):
@@ -132,7 +124,6 @@ def build_report(record: dict) -> bytes:
     tt.setStyle(TableStyle(style))
     story.append(tt)
 
-    # ---- Items requiring review ----
     review_items = scoring.get("reviewItems", [])
     story.append(Paragraph(f"Items for human review ({len(review_items)})", ss["H2x"]))
     if not review_items:
@@ -160,7 +151,6 @@ def build_report(record: dict) -> bytes:
         rt.setStyle(TableStyle(rstyle))
         story.append(rt)
 
-    # ---- Warnings & unmapped ----
     warnings = convert.get("warnings", [])
     unmapped = convert.get("unmappedTypes", [])
     if warnings or unmapped:
@@ -172,14 +162,12 @@ def build_report(record: dict) -> bytes:
                 f"&bull; <b>{u.get('table','')}.{u.get('column','')}</b> — unmapped source type "
                 f"{u.get('sourceType','')}", ss["Small"]))
 
-    # ---- Converted DDL appendix ----
     story.append(Paragraph("Appendix — converted Snowflake DDL", ss["H2x"]))
     for t in convert.get("convertedTables", []):
         ddl = (t.get("ddl") or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         story.append(Paragraph(ddl, ss["Mono"]))
         story.append(Spacer(1, 4))
 
-    # ---- Sign-off ----
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=0.6, color=BORDER, spaceAfter=8))
     story.append(Paragraph("Reviewer sign-off", ss["H2x"]))

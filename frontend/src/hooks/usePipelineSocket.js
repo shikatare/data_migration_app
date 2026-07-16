@@ -6,14 +6,27 @@ export function usePipelineSocket() {
   const [events, setEvents] = useState([]);
   const [runComplete, setRunComplete] = useState(null);
   const [runSummary, setRunSummary] = useState(null);
+  const [awaitingReview, setAwaitingReview] = useState(null);
 
   useEffect(() => {
     const socket = io("/", { path: "/socket.io" });
     socketRef.current = socket;
 
-    socket.on("agent_event", (evt) => setEvents((prev) => [...prev, evt]));
-    socket.on("run_complete", (record) => setRunComplete(record));
-    socket.on("run_complete_summary", ({ summary }) => setRunSummary(summary));
+    socket.on("agent_event", (evt) => {
+      setEvents((prev) => [...prev, evt]);
+    });
+
+    socket.on("run_complete", (record) => {
+      setRunComplete(record);
+    });
+
+    socket.on("run_complete_summary", ({ summary }) => {
+      setRunSummary(summary);
+    });
+
+    socket.on("awaiting_review", (payload) => {
+      setAwaitingReview(payload);
+    });
 
     return () => socket.disconnect();
   }, []);
@@ -22,8 +35,11 @@ export function usePipelineSocket() {
     setEvents([]);
     setRunComplete(null);
     setRunSummary(null);
+    setAwaitingReview(null);
     socketRef.current?.emit("join_run", runId);
   }, []);
 
-  return { events, runComplete, runSummary, joinRun };
+  const clearAwaitingReview = useCallback(() => setAwaitingReview(null), []);
+
+  return { events, runComplete, runSummary, awaitingReview, clearAwaitingReview, joinRun };
 }

@@ -1,8 +1,4 @@
-"""Central configuration — reads .env once and exposes typed getters.
 
-Every external system sits behind a MODE flag so the same code runs against
-mocks locally and real Oracle/Snowflake/AWS at a client by flipping config.
-"""
 import os
 from pathlib import Path
 from dotenv import load_dotenv

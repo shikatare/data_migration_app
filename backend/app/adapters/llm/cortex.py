@@ -1,5 +1,4 @@
-"""Snowflake Cortex LLM adapter — runs SNOWFLAKE.CORTEX.COMPLETE inside the
-customer's Snowflake account so data never leaves their environment."""
+
 
 
 def complete(system_prompt: str, user_prompt: str) -> str:

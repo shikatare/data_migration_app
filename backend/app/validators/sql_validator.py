@@ -1,13 +1,4 @@
-"""SQL validation for converted Snowflake DDL.
 
-Three independent checks, matching the pipeline's contract:
-  1. parse_and_check_syntax  -> is each statement valid Snowflake DDL?
-  2. structural_diff         -> did any column get dropped vs the original?
-  3. check_business_rules    -> naming conventions + disallowed types.
-
-Uses sqlglot with the Snowflake dialect, which natively understands VARIANT,
-TIMESTAMP_NTZ, OBJECT, ARRAY, etc. — so no false-positive allowlist is needed.
-"""
 import re
 import sqlglot
 
@@ -18,7 +9,7 @@ def parse_and_check_syntax(ddl_statements: list) -> list:
         try:
             sqlglot.parse_one(stmt, read="snowflake")
             results.append({"statement": stmt, "valid": True})
-        except Exception as e:  # sqlglot.errors.ParseError and friends
+        except Exception as e: 
             results.append({"statement": stmt, "valid": False, "error": str(e).splitlines()[0]})
     return results
 

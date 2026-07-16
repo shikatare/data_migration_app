@@ -1,13 +1,4 @@
-"""Real MySQL adapter — connects with mysql-connector-python and introspects
-INFORMATION_SCHEMA to build the same structured schema shape the mock
-adapter returns, so the rest of the pipeline (Convert/Validate/scoring)
-doesn't need to know whether the source was mock or real.
 
-Credentials come from the secrets adapter (env vars by default, or AWS
-Secrets Manager when SECRETS_MODE=aws), read under the "MYSQL" name —
-MYSQL_HOST / MYSQL_USER / MYSQL_PASSWORD — plus MYSQL_PORT and
-MYSQL_DATABASE read directly from the environment.
-"""
 import os
 from app.adapters.secrets import get_credentials
 

@@ -4,6 +4,8 @@ export default function RunControls({
   onSelectSchema,
   onStartRun,
   isRunning,
+  reviewMode,
+  onToggleReviewMode,
 }) {
   return (
     <div className="controls">
@@ -20,6 +22,16 @@ export default function RunControls({
           ))}
         </select>
       </div>
+
+      <label className="controls-checkbox mono">
+        <input
+          type="checkbox"
+          checked={reviewMode}
+          onChange={(e) => onToggleReviewMode(e.target.checked)}
+          disabled={isRunning}
+        />
+        Review DDL before deploy
+      </label>
 
       <button
         className="btn btn-primary"

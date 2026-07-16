@@ -4,6 +4,7 @@ import EventLog from "./components/EventLog.jsx";
 import RunControls from "./components/RunControls.jsx";
 import ResultsPanel from "./components/ResultsPanel.jsx";
 import RunHistory from "./components/RunHistory.jsx";
+import ReviewEditor from "./components/ReviewEditor.jsx";
 import { usePipelineSocket } from "./hooks/usePipelineSocket.js";
 
 export default function App() {
@@ -12,8 +13,10 @@ export default function App() {
   const [config, setConfig] = useState(null);
   const [runs, setRuns] = useState([]);
   const [activeRunId, setActiveRunId] = useState(null);
+  const [reviewMode, setReviewMode] = useState(false);
+  const [isContinuing, setIsContinuing] = useState(false);
 
-  const { events, runComplete, runSummary, joinRun } = usePipelineSocket();
+  const { events, runComplete, runSummary, awaitingReview, clearAwaitingReview, joinRun } = usePipelineSocket();
 
   const refreshRuns = useCallback(async () => {
     const res = await fetch("/api/pipeline/runs");
@@ -36,6 +39,10 @@ export default function App() {
     if (runComplete) refreshRuns();
   }, [runComplete, refreshRuns]);
 
+  useEffect(() => {
+    if (awaitingReview) setIsContinuing(false);
+  }, [awaitingReview]);
+
   const statuses = useMemo(() => {
     const s = { extract: "idle", convert: "idle", validate: "idle", deploy: "idle" };
     for (const evt of events) {
@@ -47,9 +54,9 @@ export default function App() {
     return s;
   }, [events]);
 
-  const isRunning = activeRunId && !runComplete;
+  const isRunning = activeRunId && !runComplete && !awaitingReview;
 
-  const startRun = async () => {
+  const startAutoRun = async () => {
     const res = await fetch("/api/pipeline/agentic-runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -60,12 +67,36 @@ export default function App() {
     joinRun(data.runId);
   };
 
+  const startReviewRun = async () => {
+    const res = await fetch("/api/pipeline/review-runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schemaName: selectedSchema }),
+    });
+    const data = await res.json();
+    setActiveRunId(data.runId);
+    joinRun(data.runId);
+  };
+
+  const startRun = () => (reviewMode ? startReviewRun() : startAutoRun());
+
+  const continueReviewRun = async (editedTables) => {
+    setIsContinuing(true);
+    const res = await fetch(`/api/pipeline/review-runs/${activeRunId}/continue`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ approved: true, editedTables }),
+    });
+    await res.json();
+    clearAwaitingReview();
+  };
+
   return (
     <div className="shell">
       <header className="topbar">
         <div className="topbar-title">
           <span className="topbar-mark">
-          <span style={{ color: "var(--oracle)" }}>MySQL</span>
+            <span style={{ color: "var(--oracle)" }}>MySQL</span>
             <span className="topbar-arrow">→</span>
             <span style={{ color: "var(--snowflake)" }}>Snowflake</span>
           </span>
@@ -91,16 +122,30 @@ export default function App() {
                 onSelectSchema={setSelectedSchema}
                 onStartRun={startRun}
                 isRunning={isRunning}
+                reviewMode={reviewMode}
+                onToggleReviewMode={setReviewMode}
               />
             </section>
 
-            <section className="panel">
-              <EventLog events={events} />
-            </section>
+            {awaitingReview ? (
+              <section className="panel" style={{ gridColumn: "1 / -1" }}>
+                <ReviewEditor
+                  awaitingReview={awaitingReview}
+                  onContinue={continueReviewRun}
+                  isSubmitting={isContinuing}
+                />
+              </section>
+            ) : (
+              <>
+                <section className="panel">
+                  <EventLog events={events} />
+                </section>
 
-            <section className="panel">
-              <ResultsPanel record={runComplete} />
-            </section>
+                <section className="panel">
+                  <ResultsPanel record={runComplete} summary={runSummary} />
+                </section>
+              </>
+            )}
 
             <section className="panel">
               <RunHistory runs={runs} />

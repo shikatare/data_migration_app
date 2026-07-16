@@ -1,14 +1,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
-  /* ---- Palette: warm cream / charcoal ink / soft gold ---- */
-  --bg: #F5F0E4;            /* page background — warm cream */
-  --surface: #FBF8F0;       /* panels / cards */
-  --surface-sunken: #EFE9D9;/* selects, code blocks, insets */
-  --border: #E6DECB;        /* soft warm hairline */
+  --bg: #F5F0E4;            
+  --surface: #FBF8F0;      
+  --surface-sunken: #EFE9D9;
+  --border: #E6DECB;        
   --border-strong: #D4C8AB;
 
-  --ink: #2E2A24;           /* headings / primary */
+  --ink: #2E2A24;           
   --text: #3B362E;          /* body */
   --text-muted: #857E72;    /* secondary */
   --text-faint: #A9A08C;    /* labels / captions */

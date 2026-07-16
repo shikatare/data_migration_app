@@ -1,6 +1,4 @@
-"""Validate/Deploy Agent — runs the three validation checks, computes a
-confidence score for human review, then deploys if validation passes and the
-run is approved."""
+
 from app.adapters import snowflake
 from app.validators.sql_validator import (
     parse_and_check_syntax, structural_diff, check_business_rules,
@@ -24,7 +22,6 @@ def run_validate_deploy_agent(schema, converted_tables, run_id, approved, emit) 
         "diffIssues": diff_issues,
         "ruleViolations": rule_violations,
     }
-    # Confidence scoring runs regardless of pass/fail — the report reflects reality.
     base["scoring"] = score_conversion(schema, converted_tables, base)
 
     if not validation_passed:

@@ -1,4 +1,4 @@
-"""Log & Notify Agent — always runs; writes one audit record and notifies."""
+
 from datetime import datetime, timezone
 from app.adapters import storage, notify
 

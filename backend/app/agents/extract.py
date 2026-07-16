@@ -1,9 +1,7 @@
-"""Extract Agent — pulls the MySQL schema and flags constructs with no clean
-Snowflake equivalent for review."""
+
 import re
 from app.adapters import mysql
 
-# MySQL types with no direct 1:1 Snowflake equivalent — flagged for review.
 UNMAPPED_MYSQL_TYPES = ["ENUM", "SET", "JSON", "YEAR"]
 
 

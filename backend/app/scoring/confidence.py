@@ -1,13 +1,4 @@
-"""Confidence scoring for a conversion, for human review.
 
-Assigns a confidence score to every column, table, and the run overall,
-based on how clean each MySQL->Snowflake type mapping is and whether any
-validation check flagged a problem. Produces a review checklist that a human
-can work through — the basis of the downloadable report.
-"""
-
-# Per-mapping base confidence. Clean 1:1 maps score high; semantic/lossy or
-# deprecated maps score low and get surfaced for review.
 TYPE_CONFIDENCE = {
     "VARCHAR":    (0.98, "VARCHAR", "Direct 1:1 mapping"),
     "CHAR":       (0.98, "CHAR", "Direct 1:1 mapping"),
@@ -39,8 +30,8 @@ TYPE_CONFIDENCE = {
     "YEAR":       (0.60, "NUMBER(4,0)", "Confirm downstream usage expects a 4-digit year, not a date"),
 }
 
-REVIEW_THRESHOLD = 0.70   # below this: human review required
-VERIFY_THRESHOLD = 0.90   # below this: verify recommended
+REVIEW_THRESHOLD = 0.70   # below this human review required
+VERIFY_THRESHOLD = 0.90   # below this verify recommended
 
 
 def _column_score(col: dict) -> dict:
@@ -57,10 +48,10 @@ def _column_score(col: dict) -> dict:
 
 def _level(conf: float) -> str:
     if conf < REVIEW_THRESHOLD:
-        return "review"        # human review required
+        return "review"        
     if conf < VERIFY_THRESHOLD:
-        return "verify"        # spot-check recommended
-    return "auto"              # high confidence
+        return "verify"        
+    return "auto"              
 
 
 def score_conversion(original_schema: dict, converted_tables: list, validation: dict) -> dict:
@@ -110,7 +101,7 @@ def score_conversion(original_schema: dict, converted_tables: list, validation: 
         elif worst_col < VERIFY_THRESHOLD and level == "auto":
             level = "verify"
 
-        # Collect per-column review items for anything not high-confidence.
+
         for c in cols:
             if c["confidence"] < VERIFY_THRESHOLD:
                 review_items.append({
@@ -138,7 +129,7 @@ def score_conversion(original_schema: dict, converted_tables: list, validation: 
     review_items.sort(key=lambda x: x["confidence"])
 
     review_required = sum(1 for r in review_items if r["level"] == "review")
-    # Top-line level is conservative: any item needing review makes the whole run "review".
+    
     overall_level = _level(overall)
     if review_required > 0:
         overall_level = "review"

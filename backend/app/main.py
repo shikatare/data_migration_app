@@ -1,4 +1,4 @@
-"""FastAPI + Socket.IO entrypoint for the Migration Agent backend."""
+
 import socketio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,10 +7,10 @@ from pydantic import BaseModel
 
 from app import config
 from app.adapters import mysql, storage
-from app.orchestrator.agentic import start_agentic_run
+from app.orchestrator.agentic import start_agentic_run, start_review_run, continue_review_run
+from typing import List, Optional
 from app.reporting.report import build_report
 
-# ---- Socket.IO (ASGI) so the React socket.io-client works unchanged ----
 sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 
 
@@ -18,8 +18,6 @@ sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
 async def join_run(sid, run_id):
     await sio.enter_room(sid, f"run:{run_id}")
 
-
-# ---- FastAPI ----
 api = FastAPI(title="Migration Agent")
 api.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -27,6 +25,16 @@ api.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 class RunRequest(BaseModel):
     schemaName: str
     approved: bool = False
+
+
+class EditedTable(BaseModel):
+    name: str
+    ddl: str
+
+
+class ContinueRequest(BaseModel):
+    approved: bool = False
+    editedTables: Optional[List[EditedTable]] = None
 
 
 @api.get("/api/health")
@@ -57,7 +65,22 @@ async def agentic_run(req: RunRequest):
     return {"runId": run_id, "room": room}
 
 
-# Kept for compatibility with the old deterministic endpoint name.
+@api.post("/api/pipeline/review-runs")
+async def review_run(req: RunRequest):
+    if not req.schemaName:
+        raise HTTPException(400, "schemaName is required")
+    run_id, room = await start_review_run(req.schemaName, sio)
+    return {"runId": run_id, "room": room}
+
+
+@api.post("/api/pipeline/review-runs/{run_id}/continue")
+async def review_run_continue(run_id: str, req: ContinueRequest):
+    edited = [t.dict() for t in req.editedTables] if req.editedTables else None
+    result = await continue_review_run(run_id, req.approved, edited, sio)
+    return result
+
+
+
 @api.post("/api/pipeline/runs")
 async def run(req: RunRequest):
     if not req.schemaName:
@@ -77,5 +100,4 @@ async def download_report(run_id: str):
                     headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
-# Mount Socket.IO at /socket.io, FastAPI everywhere else.
 app = socketio.ASGIApp(sio, other_asgi_app=api, socketio_path="/socket.io")

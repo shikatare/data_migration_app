@@ -1,5 +1,4 @@
-"""Convert Agent — translates MySQL DDL to Snowflake DDL via the LLM, guided
-by explicit type-mapping rules and few-shot examples; returns structured JSON."""
+
 import json
 from app.adapters import llm
 

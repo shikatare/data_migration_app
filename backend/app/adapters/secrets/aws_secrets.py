@@ -1,4 +1,4 @@
-"""AWS Secrets Manager adapter — implement with boto3 when SECRETS_MODE=aws."""
+
 import os
 import json
 
