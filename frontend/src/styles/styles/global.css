@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ---- Surfaces (Stripe: light blue-gray canvas, white cards) ---- */
+  --bg: #F6F9FC;
+  --surface: #FFFFFF;
+  --surface-sunken: #F6F9FC;
+  --border: #E6EBF1;
+  --border-strong: #D6DEE6;
+
+  /* ---- Text (Stripe deep navy → slate) ---- */
+  --ink: #0A2540;           /* headings */
+  --text: #3C4257;          /* body */
+  --text-muted: #697386;    /* secondary */
+  --text-faint: #8792A2;    /* labels / captions */
+
+  /* ---- Accent: Stripe "blurple" ---- */
+  --gold: #635BFF;          /* the accent (var name kept for compatibility) */
+  --gold-strong: #5449D6;   /* hover / emphasis */
+  --gold-soft: #EFEDFF;     /* pale fill for active states */
+
+  /* ---- Semantic colors mapped onto the Stripe palette ---- */
+  --oracle: #0A2540;        /* extract tag — deep navy */
+  --amber: #635BFF;         /* convert/validate + running — blurple */
+  --snowflake: #0AA6D8;     /* deploy tag — Stripe cyan */
+  --success: #1EA672;       /* Stripe green */
+  --fail: #DF1B41;          /* Stripe red */
+  --waiting: #B8720B;       /* readable amber for "awaiting" */
+
+  /* soft fills for pills + dots */
+  --oracle-light: #E7ECF3;
+  --amber-light: #EFEDFF;
+  --snowflake-light: #E1F5FB;
+  --success-light: #DEF3EA;
+  --fail-light: #FBE4E9;
+  --waiting-light: #FBF0DC;
+
+  /* mids for the pipeline connector */
+  --oracle-mid: #C9D3DF;
+  --amber-mid: #B7B2FF;
+  --snowflake-mid: #A7DCEC;
+  --waiting-mid: #E3C48C;
+
+  /* Stripe-style soft, cool-tinted shadows */
+  --shadow-sm: 0 1px 3px rgba(10, 37, 64, 0.06), 0 1px 2px rgba(10, 37, 64, 0.04);
+  --shadow-md: 0 7px 14px rgba(10, 37, 64, 0.08), 0 3px 6px rgba(10, 37, 64, 0.05);
+  --shadow-lg: 0 15px 35px rgba(10, 37, 64, 0.10), 0 5px 15px rgba(10, 37, 64, 0.06);
+
+  --font-display: "Inter", -apple-system, system-ui, sans-serif;
+  --font-body: "Inter", -apple-system, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root { position: relative; z-index: 1; }
+
+button { font-family: inherit; }
+
+::selection { background: rgba(99, 91, 255, 0.18); color: var(--ink); }
+
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+code, .mono { font-family: var(--font-mono); }
+
+/* ---- Neutralize all inherited 3D so no JSX changes are needed ---- */
+.perspective-scene { perspective: none !important; }
+
+/* The signature Stripe flowing gradient (used by the topbar hero) */
+@keyframes stripe-flow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

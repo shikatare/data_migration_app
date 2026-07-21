@@ -1,0 +1,123 @@
+/* ---------- Pipeline Rail (flat, aligned, no 3D) ---------- */
+.rail {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding: 6px 4px 2px;
+}
+
+/* Connector line sits behind the cards, aligned to the status dots. */
+.rail-track {
+  position: absolute;
+  top: 28px;
+  left: 13%;
+  right: 13%;
+  height: 2px;
+  background: var(--border-strong);
+  border-radius: 2px;
+  z-index: 0;
+}
+
+.rail-stage {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.rail-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 12px 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.rail-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+/* No colored tint washes — keep every card the same cream surface. */
+.rail-tint-oracle,
+.rail-tint-amber,
+.rail-tint-snowflake { background: var(--surface); }
+
+/* Status = border + dot + subtle fill. No motion, no depth. */
+.rail-status-idle { opacity: 0.7; }
+
+.rail-status-running {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+  box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.14), var(--shadow-sm);
+}
+
+.rail-status-waiting {
+  border-color: var(--waiting);
+  background: var(--waiting-light);
+}
+
+.rail-status-success {
+  border-color: var(--success);
+}
+
+.rail-status-failed {
+  border-color: var(--fail);
+  background: var(--fail-light);
+}
+
+/* Status dot */
+.rail-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+.rail-dot-running {
+  background: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold-strong);
+  animation: rail-pulse 1.6s ease-in-out infinite;
+}
+.rail-dot-waiting { background: var(--waiting); box-shadow: 0 0 0 1px var(--waiting); }
+.rail-dot-success { background: var(--success); box-shadow: 0 0 0 1px var(--success); }
+.rail-dot-failed  { background: var(--fail);    box-shadow: 0 0 0 1px var(--fail); }
+
+/* A gentle 2D fade on the active dot — not 3D motion, just a live affordance. */
+@keyframes rail-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.rail-card-label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.rail-card-sub {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.rail-card-status {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-dot-running { animation: none; }
+}
+
+@media (max-width: 900px) {
+  .rail { flex-wrap: wrap; }
+  .rail-stage { flex: 1 1 45%; }
+  .rail-track { display: none; }
+}
