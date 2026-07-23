@@ -1,0 +1,30 @@
+{
+    "schemaName": "HR_PAYROLL",
+    "tables": [
+      {
+        "name": "EMPLOYEES",
+        "columns": [
+          { "name": "EMPLOYEE_ID", "type": "INTEGER", "length": null, "nullable": false, "distkey": true, "sortkey": true },
+          { "name": "FIRST_NAME", "type": "VARCHAR", "length": 100, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "LAST_NAME", "type": "VARCHAR", "length": 100, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "HIRE_DATE", "type": "DATE", "length": null, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "DEPARTMENT_ID", "type": "INTEGER", "length": null, "nullable": true, "distkey": false, "sortkey": false },
+          { "name": "RESUME", "type": "VARCHAR", "length": 65535, "nullable": true, "distkey": false, "sortkey": false },
+          { "name": "ORG_CHART", "type": "SUPER", "length": null, "nullable": true, "distkey": false, "sortkey": false }
+        ],
+        "rawDdl": "CREATE TABLE EMPLOYEES (EMPLOYEE_ID INTEGER IDENTITY(1,1) NOT NULL, FIRST_NAME VARCHAR(100) NOT NULL, LAST_NAME VARCHAR(100) NOT NULL, HIRE_DATE DATE NOT NULL, DEPARTMENT_ID INTEGER, RESUME VARCHAR(65535), ORG_CHART SUPER) DISTKEY(EMPLOYEE_ID) SORTKEY(EMPLOYEE_ID);"
+      },
+      {
+        "name": "PAYROLL_RUNS",
+        "columns": [
+          { "name": "RUN_ID", "type": "INTEGER", "length": null, "nullable": false, "distkey": false, "sortkey": true },
+          { "name": "EMPLOYEE_ID", "type": "INTEGER", "length": null, "nullable": false, "distkey": true, "sortkey": false },
+          { "name": "PAY_PERIOD_START", "type": "DATE", "length": null, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "PAY_PERIOD_END", "type": "DATE", "length": null, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "GROSS_PAY", "type": "DECIMAL", "length": null, "nullable": false, "precision": 12, "scale": 2, "distkey": false, "sortkey": false },
+          { "name": "TAX_WITHHELD", "type": "DECIMAL", "length": null, "nullable": false, "precision": 12, "scale": 2, "distkey": false, "sortkey": false }
+        ],
+        "rawDdl": "CREATE TABLE PAYROLL_RUNS (RUN_ID INTEGER IDENTITY(1,1) NOT NULL, EMPLOYEE_ID INTEGER NOT NULL, PAY_PERIOD_START DATE NOT NULL, PAY_PERIOD_END DATE NOT NULL, GROSS_PAY DECIMAL(12,2) NOT NULL, TAX_WITHHELD DECIMAL(12,2) NOT NULL) DISTKEY(EMPLOYEE_ID) SORTKEY(RUN_ID);"
+      }
+    ]
+  }

@@ -53,7 +53,7 @@ export default function ResultsPanel({ record, summary }) {
               {validateDeploy.scoring.reviewItems.map((r, i) => (
                 <li key={i}>
                   <span className="mono results-tag">{r.table}.{r.column}</span>
-                  {r.sourceType} → {r.snowflakeType} ({Math.round(r.confidence * 100)}%) — {r.note}
+                  {r.sourceType} → {r.targetType} ({Math.round(r.confidence * 100)}%) — {r.note}
                 </li>
               ))}
             </ul>
@@ -96,7 +96,7 @@ export default function ResultsPanel({ record, summary }) {
             )}
             {convert.convertedTables?.length > 0 && (
               <details className="results-ddl">
-                <summary>View converted Snowflake DDL</summary>
+                <summary>View converted target DDL</summary>
                 {convert.convertedTables.map((t, i) => (
                   <pre key={i} className="mono ddl-block">{t.ddl}</pre>
                 ))}

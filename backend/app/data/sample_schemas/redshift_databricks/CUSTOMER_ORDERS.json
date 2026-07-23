@@ -1,0 +1,42 @@
+{
+    "schemaName": "CUSTOMER_ORDERS",
+    "tables": [
+      {
+        "name": "CUSTOMERS",
+        "columns": [
+          { "name": "CUSTOMER_ID", "type": "INTEGER", "length": null, "nullable": false, "distkey": true, "sortkey": true },
+          { "name": "FULL_NAME", "type": "VARCHAR", "length": 200, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "EMAIL", "type": "VARCHAR", "length": 320, "nullable": true, "distkey": false, "sortkey": false },
+          { "name": "SIGNUP_DATE", "type": "DATE", "length": null, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "NOTES", "type": "VARCHAR", "length": 65535, "nullable": true, "distkey": false, "sortkey": false },
+          { "name": "PREFERENCES", "type": "SUPER", "length": null, "nullable": true, "distkey": false, "sortkey": false }
+        ],
+        "rawDdl": "CREATE TABLE CUSTOMERS (CUSTOMER_ID INTEGER IDENTITY(1,1) NOT NULL, FULL_NAME VARCHAR(200) NOT NULL, EMAIL VARCHAR(320), SIGNUP_DATE DATE NOT NULL, NOTES VARCHAR(65535), PREFERENCES SUPER) DISTKEY(CUSTOMER_ID) SORTKEY(CUSTOMER_ID);"
+      },
+      {
+        "name": "ORDERS",
+        "columns": [
+          { "name": "ORDER_ID", "type": "BIGINT", "length": null, "nullable": false, "distkey": false, "sortkey": true },
+          { "name": "CUSTOMER_ID", "type": "INTEGER", "length": null, "nullable": false, "distkey": true, "sortkey": false },
+          { "name": "ORDER_DATE", "type": "TIMESTAMP", "length": null, "nullable": false, "distkey": false, "sortkey": true },
+          { "name": "STATUS", "type": "VARCHAR", "length": 15, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "TOTAL_AMOUNT", "type": "DECIMAL", "length": null, "nullable": false, "precision": 12, "scale": 2, "distkey": false, "sortkey": false },
+          { "name": "SHIPPING_ADDRESS", "type": "VARCHAR", "length": 500, "nullable": true, "distkey": false, "sortkey": false },
+          { "name": "METADATA", "type": "SUPER", "length": null, "nullable": true, "distkey": false, "sortkey": false }
+        ],
+        "rawDdl": "CREATE TABLE ORDERS (ORDER_ID BIGINT IDENTITY(1,1) NOT NULL, CUSTOMER_ID INTEGER NOT NULL, ORDER_DATE TIMESTAMP NOT NULL, STATUS VARCHAR(15) NOT NULL, TOTAL_AMOUNT DECIMAL(12,2) NOT NULL, SHIPPING_ADDRESS VARCHAR(500), METADATA SUPER) DISTKEY(CUSTOMER_ID) SORTKEY(ORDER_DATE);"
+      },
+      {
+        "name": "ORDER_ITEMS",
+        "columns": [
+          { "name": "ORDER_ITEM_ID", "type": "BIGINT", "length": null, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "ORDER_ID", "type": "BIGINT", "length": null, "nullable": false, "distkey": true, "sortkey": false },
+          { "name": "PRODUCT_SKU", "type": "VARCHAR", "length": 50, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "QUANTITY", "type": "INTEGER", "length": null, "nullable": false, "distkey": false, "sortkey": false },
+          { "name": "UNIT_PRICE", "type": "DECIMAL", "length": null, "nullable": false, "precision": 10, "scale": 2, "distkey": false, "sortkey": false },
+          { "name": "DISCOUNT_PCT", "type": "DECIMAL", "length": null, "nullable": true, "precision": 5, "scale": 2, "distkey": false, "sortkey": false }
+        ],
+        "rawDdl": "CREATE TABLE ORDER_ITEMS (ORDER_ITEM_ID BIGINT IDENTITY(1,1) NOT NULL, ORDER_ID BIGINT NOT NULL, PRODUCT_SKU VARCHAR(50) NOT NULL, QUANTITY INTEGER NOT NULL, UNIT_PRICE DECIMAL(10,2) NOT NULL, DISCOUNT_PCT DECIMAL(5,2)) DISTKEY(ORDER_ID);"
+      }
+    ]
+  }

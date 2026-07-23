@@ -67,7 +67,9 @@ def build_report(record: dict) -> bytes:
     convert = record.get("convert") or {}
     overall = scoring.get("overallConfidence")
 
-    story.append(Paragraph("MySQL &rarr; Snowflake Migration", ss["H1x"]))
+    from app.pipelines import get_pipeline
+    p = get_pipeline(record.get("pipeline", "mysql_snowflake"))
+    story.append(Paragraph(f"{p['sourceLabel']} &rarr; {p['targetLabel']} Migration", ss["H1x"]))
     story.append(Paragraph("Conversion Review Report", ss["Subx"]))
     story.append(HRFlowable(width="100%", thickness=1, color=GOLD, spaceAfter=10))
 
@@ -87,7 +89,7 @@ def build_report(record: dict) -> bytes:
     rule_violations = vd.get("ruleViolations", [])
     checks = [
         ["Check", "Result"],
-        ["1. DDL syntax parse (Snowflake dialect)",
+        [f"1. DDL syntax parse ({p['targetLabel']} dialect)",
          "PASS" if not syntax_errors else f"FAIL — {len(syntax_errors)} error(s)"],
         ["2. Structural diff (no dropped columns vs source)",
          "PASS" if not diff_issues else f"FAIL — {len(diff_issues)} issue(s)"],
@@ -133,7 +135,7 @@ def build_report(record: dict) -> bytes:
         for r in review_items:
             rrows.append([
                 Paragraph(f"<b>{r['table']}</b>.{r['column']}", ss["Small"]),
-                Paragraph(f"{r['sourceType']} &rarr; {r['snowflakeType']}", ss["Small"]),
+                Paragraph(f"{r['sourceType']} &rarr; {r['targetType']}", ss["Small"]),
                 Paragraph(f"{int(r['confidence']*100)}%", ss["Small"]),
                 Paragraph(r["note"], ss["Small"]),
             ])
@@ -162,7 +164,7 @@ def build_report(record: dict) -> bytes:
                 f"&bull; <b>{u.get('table','')}.{u.get('column','')}</b> — unmapped source type "
                 f"{u.get('sourceType','')}", ss["Small"]))
 
-    story.append(Paragraph("Appendix — converted Snowflake DDL", ss["H2x"]))
+    story.append(Paragraph(f"Appendix — converted {p['targetLabel']} DDL", ss["H2x"]))
     for t in convert.get("convertedTables", []):
         ddl = (t.get("ddl") or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         story.append(Paragraph(ddl, ss["Mono"]))

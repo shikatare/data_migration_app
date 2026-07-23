@@ -1,5 +1,4 @@
-"""Wraps the four agents as LangChain tools sharing a mutable run state,
-so the LLM (or the deterministic driver) can call them in sequence."""
+
 import os
 import json
 from datetime import datetime, timezone
@@ -11,6 +10,7 @@ from app.agents.extract import run_extract_agent
 from app.agents.convert import run_convert_agent
 from app.agents.validate_deploy import run_validate_deploy_agent
 from app.agents.log_notify import run_log_notify_agent
+from app.pipelines import get_pipeline
 
 
 class _NoArgs(BaseModel):
@@ -24,16 +24,20 @@ class _ConvertArgs(BaseModel):
     )
 
 
-def create_pipeline_tools(run_id, schema_name, approved, emit, emit_event=None):
+def create_pipeline_tools(run_id, schema_name, pipeline, approved, emit, emit_event=None):
+    p = get_pipeline(pipeline)
+    extract_tool_name = f"extract_{p['sourceLabel'].lower()}_schema"
+    convert_tool_name = f"convert_to_{p['targetLabel'].lower()}_ddl"
+
     state = {
-        "schemaName": schema_name, "schema": None, "convertedTables": None,
+        "schemaName": schema_name, "pipeline": pipeline, "schema": None, "convertedTables": None,
         "stageOutcome": {}, "logNotifyCalled": False, "record": None,
         "forcedFailureUsed": False,
         "startedAt": datetime.now(timezone.utc).isoformat(),
     }
 
     def _extract() -> str:
-        out = run_extract_agent(state["schemaName"], emit)
+        out = run_extract_agent(state["schemaName"], pipeline, emit)
         state["schema"] = out["schema"]
         state["stageOutcome"]["extract"] = {
             "tableCount": len(out["schema"]["tables"]),
@@ -45,8 +49,8 @@ def create_pipeline_tools(run_id, schema_name, approved, emit, emit_event=None):
 
     def _convert(feedback: Optional[str] = None) -> str:
         if not state["schema"]:
-            return "ERROR: schema not extracted yet. Call extract_mysql_schema first."
-        out = run_convert_agent(state["schema"], emit, feedback)
+            return f"ERROR: schema not extracted yet. Call {extract_tool_name} first."
+        out = run_convert_agent(state["schema"], pipeline, emit, feedback)
         state["convertedTables"] = out["convertedTables"]
         state["stageOutcome"]["convert"] = {
             "tableCount": len(out["convertedTables"]),
@@ -58,7 +62,7 @@ def create_pipeline_tools(run_id, schema_name, approved, emit, emit_event=None):
 
     def _validate() -> str:
         if not state["convertedTables"]:
-            return "ERROR: no converted DDL yet. Call convert_to_snowflake_ddl first."
+            return f"ERROR: no converted DDL yet. Call {convert_tool_name} first."
         if os.getenv("FORCE_VALIDATION_FAIL_ONCE") == "true" and not state["forcedFailureUsed"]:
             state["forcedFailureUsed"] = True
             return json.dumps({"validationPassed": False, "syntaxErrorCount": 0,
@@ -66,7 +70,7 @@ def create_pipeline_tools(run_id, schema_name, approved, emit, emit_event=None):
                                                "columns": ["LOYALTY_TIER"]}],
                                "ruleViolations": [], "deployStatus": "not_attempted"})
         result = run_validate_deploy_agent(state["schema"], state["convertedTables"],
-                                           run_id, approved, emit)
+                                           pipeline, run_id, approved, emit)
         state["stageOutcome"]["validateDeploy"] = result
         return json.dumps({"validationPassed": result["validationPassed"],
                            "syntaxErrorCount": len(result.get("syntaxErrors", [])),
@@ -75,7 +79,7 @@ def create_pipeline_tools(run_id, schema_name, approved, emit, emit_event=None):
                            "deployStatus": result["deployStatus"]})
 
     def _log_notify_impl() -> str:
-        out = run_log_notify_agent(run_id, state["schemaName"], state["startedAt"],
+        out = run_log_notify_agent(run_id, state["schemaName"], pipeline, state["startedAt"],
                                    state["stageOutcome"], emit)
         state["logNotifyCalled"] = True
         state["record"] = out["record"]
@@ -88,16 +92,16 @@ def create_pipeline_tools(run_id, schema_name, approved, emit, emit_event=None):
             return "ERROR: log_and_notify was already called. You're done, stop here."
         if state["schema"] is not None and not state["stageOutcome"].get("validateDeploy"):
             return ("ERROR: You have not completed validate_and_deploy yet. Call "
-                    "convert_to_snowflake_ddl (if not already done) and then "
+                    f"{convert_tool_name} (if not already done) and then "
                     "validate_and_deploy before calling log_and_notify.")
         return _log_notify_impl()
 
     extract_tool = StructuredTool.from_function(
-        func=_extract, name="extract_mysql_schema", args_schema=_NoArgs,
-        description="Extracts the MySQL schema (tables, columns, DDL). Must be called first.")
+        func=_extract, name=extract_tool_name, args_schema=_NoArgs,
+        description=f"Extracts the {p['sourceLabel']} schema (tables, columns, DDL). Must be called first.")
     convert_tool = StructuredTool.from_function(
-        func=_convert, name="convert_to_snowflake_ddl", args_schema=_ConvertArgs,
-        description=("Converts extracted MySQL DDL to Snowflake DDL via an LLM. "
+        func=_convert, name=convert_tool_name, args_schema=_ConvertArgs,
+        description=(f"Converts extracted {p['sourceLabel']} DDL to {p['targetLabel']} DDL via an LLM. "
                      "If a prior validate_and_deploy failed, pass its issues as `feedback`."))
     validate_tool = StructuredTool.from_function(
         func=_validate, name="validate_and_deploy", args_schema=_NoArgs,

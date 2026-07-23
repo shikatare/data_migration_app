@@ -1,4 +1,7 @@
 export default function RunControls({
+  pipelines,
+  selectedPipeline,
+  onSelectPipeline,
   schemas,
   selectedSchema,
   onSelectSchema,
@@ -9,6 +12,20 @@ export default function RunControls({
 }) {
   return (
     <div className="controls">
+      <div className="controls-field">
+        <label className="controls-label mono">PIPELINE</label>
+        <select
+          className="controls-select"
+          value={selectedPipeline}
+          onChange={(e) => onSelectPipeline(e.target.value)}
+          disabled={isRunning}
+        >
+          {pipelines.map((p) => (
+            <option key={p.key} value={p.key}>{p.label}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="controls-field">
         <label className="controls-label mono">SCHEMA</label>
         <select

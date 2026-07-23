@@ -34,13 +34,14 @@ def _summarize(record: dict) -> str:
     return " | ".join(parts)
 
 
-def run_log_notify_agent(run_id, schema_name, started_at, stage_outcome, emit) -> dict:
+def run_log_notify_agent(run_id, schema_name, pipeline, started_at, stage_outcome, emit) -> dict:
     emit("log_notify", "running", "Recording run metadata and publishing summary...")
     vd = stage_outcome.get("validateDeploy") or {}
     scoring = vd.get("scoring") or {}
     record = {
         "runId": run_id,
         "schemaName": schema_name,
+        "pipeline": pipeline,
         "startedAt": started_at,
         "finishedAt": datetime.now(timezone.utc).isoformat(),
         "overallStatus": _overall_status(stage_outcome),

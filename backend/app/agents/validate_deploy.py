@@ -1,19 +1,28 @@
-
-from app.adapters import snowflake
+from app.pipelines import get_pipeline
 from app.validators.sql_validator import (
     parse_and_check_syntax, structural_diff, check_business_rules,
 )
 from app.scoring.confidence import score_conversion
 
 
-def run_validate_deploy_agent(schema, converted_tables, run_id, approved, emit) -> dict:
+def _target_adapter(pipeline: str):
+    if pipeline == "mysql_snowflake":
+        from app.adapters import snowflake
+        return snowflake
+    from app.adapters import databricks
+    return databricks
+
+
+def run_validate_deploy_agent(schema, converted_tables, pipeline, run_id, approved, emit) -> dict:
+    p = get_pipeline(pipeline)
+    target = _target_adapter(pipeline)
     emit("validate", "running", "Parsing DDL syntax and running structural diff...")
     ddl_statements = [t["ddl"] for t in converted_tables]
 
-    syntax_results = parse_and_check_syntax(ddl_statements)
+    syntax_results = parse_and_check_syntax(ddl_statements, p["sqlDialect"])
     syntax_errors = [r for r in syntax_results if not r["valid"]]
     diff_issues = structural_diff(schema, converted_tables)
-    rule_violations = check_business_rules(converted_tables)
+    rule_violations = check_business_rules(converted_tables, pipeline)
     validation_passed = len(syntax_errors) == 0 and len(diff_issues) == 0
 
     base = {
@@ -22,7 +31,7 @@ def run_validate_deploy_agent(schema, converted_tables, run_id, approved, emit) 
         "diffIssues": diff_issues,
         "ruleViolations": rule_violations,
     }
-    base["scoring"] = score_conversion(schema, converted_tables, base)
+    base["scoring"] = score_conversion(schema, converted_tables, base, pipeline)
 
     if not validation_passed:
         emit("validate", "failed",
@@ -36,17 +45,17 @@ def run_validate_deploy_agent(schema, converted_tables, run_id, approved, emit) 
 
     if not approved:
         emit("deploy", "waiting",
-             "Validation passed — waiting for manual approval before deploying to Snowflake.")
+             f"Validation passed — waiting for manual approval before deploying to {p['targetLabel']}.")
         return {**base, "deployStatus": "awaiting_approval", "objectsCreated": []}
 
-    emit("deploy", "running", "Dry-running DDL against Snowflake sandbox...")
-    dry = snowflake.dry_run(ddl_statements)
-    if any(r["dryRunStatus"] == "failed" for r in dry):
+    emit("deploy", "running", f"Dry-running DDL against {p['targetLabel']}...")
+    dry = target.dry_run(ddl_statements)
+    if any(r.get("dryRunStatus") == "failed" for r in dry):
         emit("deploy", "failed", "Dry-run failed — deployment aborted.")
         return {**base, "deployStatus": "failed", "dryRunResults": dry, "objectsCreated": []}
 
-    emit("deploy", "running", "Deploying DDL to Snowflake (tables before views/FKs)...")
-    result = snowflake.deploy(ddl_statements, run_id)
-    emit("deploy", "success", f"Deployed {len(result['objectsCreated'])} object(s) to Snowflake.")
+    emit("deploy", "running", f"Deploying DDL to {p['targetLabel']} (tables before views/FKs)...")
+    result = target.deploy(ddl_statements, run_id)
+    emit("deploy", "success", f"Deployed {len(result['objectsCreated'])} object(s) to {p['targetLabel']}.")
     return {**base, "deployStatus": result["status"],
             "dryRunResults": dry, "objectsCreated": result["objectsCreated"]}

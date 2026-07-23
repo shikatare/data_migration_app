@@ -18,6 +18,8 @@ def config_summary() -> dict:
     return {
         "mysqlMode": get("MYSQL_MODE", "mock"),
         "snowflakeMode": get("SNOWFLAKE_MODE", "mock"),
+        "redshiftMode": get("REDSHIFT_MODE", "mock"),
+        "databricksMode": get("DATABRICKS_MODE", "mock"),
         "llmProvider": get("LLM_PROVIDER", "groq"),
         "secretsMode": get("SECRETS_MODE", "env"),
         "storageMode": get("STORAGE_MODE", "local"),

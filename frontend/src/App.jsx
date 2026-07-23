@@ -8,6 +8,8 @@ import ReviewEditor from "./components/ReviewEditor.jsx";
 import { usePipelineSocket } from "./hooks/usePipelineSocket.js";
 
 export default function App() {
+  const [pipelines, setPipelines] = useState([]);
+  const [selectedPipeline, setSelectedPipeline] = useState("");
   const [schemas, setSchemas] = useState([]);
   const [selectedSchema, setSelectedSchema] = useState("");
   const [config, setConfig] = useState(null);
@@ -25,15 +27,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/pipeline/schemas")
+    fetch("/api/pipeline/pipelines")
       .then((r) => r.json())
       .then((d) => {
-        setSchemas(d.schemas || []);
-        if (d.schemas?.length) setSelectedSchema(d.schemas[0]);
+        setPipelines(d.pipelines || []);
+        setSelectedPipeline(d.default || d.pipelines?.[0]?.key || "");
       });
     fetch("/api/pipeline/config").then((r) => r.json()).then(setConfig);
     refreshRuns();
   }, [refreshRuns]);
+
+  useEffect(() => {
+    if (!selectedPipeline) return;
+    fetch(`/api/pipeline/schemas?pipeline=${encodeURIComponent(selectedPipeline)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setSchemas(d.schemas || []);
+        setSelectedSchema(d.schemas?.[0] || "");
+      });
+  }, [selectedPipeline]);
 
   useEffect(() => {
     if (runComplete) refreshRuns();
@@ -55,12 +67,13 @@ export default function App() {
   }, [events]);
 
   const isRunning = activeRunId && !runComplete && !awaitingReview;
+  const currentPipeline = pipelines.find((p) => p.key === selectedPipeline);
 
   const startAutoRun = async () => {
     const res = await fetch("/api/pipeline/agentic-runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ schemaName: selectedSchema, approved: true }),
+      body: JSON.stringify({ schemaName: selectedSchema, pipeline: selectedPipeline, approved: true }),
     });
     const data = await res.json();
     setActiveRunId(data.runId);
@@ -71,7 +84,7 @@ export default function App() {
     const res = await fetch("/api/pipeline/review-runs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ schemaName: selectedSchema }),
+      body: JSON.stringify({ schemaName: selectedSchema, pipeline: selectedPipeline }),
     });
     const data = await res.json();
     setActiveRunId(data.runId);
@@ -91,21 +104,24 @@ export default function App() {
     clearAwaitingReview();
   };
 
+  const sourceModeKey = currentPipeline ? `${currentPipeline.key.split("_")[0]}Mode` : null;
+  const targetModeKey = selectedPipeline === "mysql_snowflake" ? "snowflakeMode" : "databricksMode";
+
   return (
     <div className="shell">
       <header className="topbar">
         <div className="topbar-title">
           <span className="topbar-mark">
-            <span style={{ color: "var(--oracle)" }}>MySQL</span>
+            <span style={{ color: "var(--oracle)" }}>{currentPipeline?.sourceLabel || "Source"}</span>
             <span className="topbar-arrow">→</span>
-            <span style={{ color: "var(--snowflake)" }}>Snowflake</span>
+            <span style={{ color: "var(--snowflake)" }}>{currentPipeline?.targetLabel || "Target"}</span>
           </span>
           <span className="topbar-sub">Migration Agent Console</span>
         </div>
-        {config && (
+        {config && currentPipeline && (
           <div className="topbar-modes mono">
-            <ModePill label="mysql" value={config.mysqlMode} />
-            <ModePill label="snowflake" value={config.snowflakeMode} />
+            <ModePill label={currentPipeline.sourceLabel.toLowerCase()} value={config[sourceModeKey]} />
+            <ModePill label={currentPipeline.targetLabel.toLowerCase()} value={config[targetModeKey]} />
             <ModePill label="llm" value={config.llmProvider} />
           </div>
         )}
@@ -115,8 +131,11 @@ export default function App() {
         <div className="scene-tilt">
           <div className="main-grid">
             <section className="panel rail-panel">
-              <PipelineRail statuses={statuses} />
+              <PipelineRail statuses={statuses} sourceLabel={currentPipeline?.sourceLabel} targetLabel={currentPipeline?.targetLabel} />
               <RunControls
+                pipelines={pipelines}
+                selectedPipeline={selectedPipeline}
+                onSelectPipeline={setSelectedPipeline}
                 schemas={schemas}
                 selectedSchema={selectedSchema}
                 onSelectSchema={setSelectedSchema}

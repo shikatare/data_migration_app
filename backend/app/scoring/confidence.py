@@ -1,5 +1,4 @@
-
-TYPE_CONFIDENCE = {
+TYPE_CONFIDENCE_MYSQL_SNOWFLAKE = {
     "VARCHAR":    (0.98, "VARCHAR", "Direct 1:1 mapping"),
     "CHAR":       (0.98, "CHAR", "Direct 1:1 mapping"),
     "TEXT":       (0.95, "VARCHAR", "Direct mapping; Snowflake VARCHAR supports up to 16MB"),
@@ -30,32 +29,80 @@ TYPE_CONFIDENCE = {
     "YEAR":       (0.60, "NUMBER(4,0)", "Confirm downstream usage expects a 4-digit year, not a date"),
 }
 
-REVIEW_THRESHOLD = 0.70   # below this human review required
-VERIFY_THRESHOLD = 0.90   # below this verify recommended
+TYPE_CONFIDENCE_REDSHIFT_DATABRICKS = {
+    "VARCHAR":            (0.90, "STRING", "Direct mapping; Databricks STRING has no length limit — the length constraint is not enforced"),
+    "CHARACTER VARYING":  (0.90, "STRING", "Direct mapping; Databricks STRING has no length limit"),
+    "CHAR":               (0.90, "STRING", "Direct mapping; fixed-length padding behavior is not preserved"),
+    "CHARACTER":          (0.90, "STRING", "Direct mapping; fixed-length padding behavior is not preserved"),
+    "INTEGER":            (0.97, "INT", "Direct mapping"),
+    "INT4":               (0.97, "INT", "Direct mapping"),
+    "BIGINT":             (0.97, "BIGINT", "Direct mapping"),
+    "INT8":               (0.97, "BIGINT", "Direct mapping"),
+    "SMALLINT":           (0.97, "SMALLINT", "Direct mapping"),
+    "INT2":               (0.97, "SMALLINT", "Direct mapping"),
+    "DECIMAL":            (0.97, "DECIMAL", "Direct mapping; precision/scale preserved"),
+    "NUMERIC":            (0.97, "DECIMAL", "Direct mapping; precision/scale preserved"),
+    "REAL":               (0.93, "FLOAT", "Direct mapping; confirm precision requirements"),
+    "FLOAT4":             (0.93, "FLOAT", "Direct mapping; confirm precision requirements"),
+    "DOUBLE PRECISION":   (0.93, "DOUBLE", "Direct mapping"),
+    "FLOAT8":             (0.93, "DOUBLE", "Direct mapping"),
+    "BOOLEAN":            (0.97, "BOOLEAN", "Direct mapping"),
+    "DATE":               (0.98, "DATE", "Direct mapping"),
+    "TIMESTAMP":          (0.75, "TIMESTAMP", "Databricks TIMESTAMP is timezone-aware; Redshift TIMESTAMP is not — confirm semantics"),
+    "TIMESTAMPTZ":        (0.90, "TIMESTAMP", "Direct mapping; both are timezone-aware"),
+    "SUPER":              (0.50, "STRING", "Semi-structured SUPER mapped to STRING — downstream access patterns must be rewritten; consider STRUCT/MAP/ARRAY if the shape is known"),
+    "GEOMETRY":           (0.35, "STRING", "No native spatial type in Databricks SQL; manual review of spatial query logic required"),
+    "GEOGRAPHY":          (0.35, "STRING", "No native spatial type in Databricks SQL; manual review of spatial query logic required"),
+    "HLLSKETCH":          (0.30, "STRING", "HyperLogLog sketch has no Databricks equivalent; manual reimplementation required"),
+}
+
+TYPE_CONFIDENCE = {
+    "mysql_snowflake": TYPE_CONFIDENCE_MYSQL_SNOWFLAKE,
+    "redshift_databricks": TYPE_CONFIDENCE_REDSHIFT_DATABRICKS,
+}
+
+ATTRIBUTE_PENALTIES = {
+    "distkey": (0.85, "DISTKEY has no Databricks equivalent — physical distribution hint is lost; "
+                       "consider Z-ORDER BY or liquid clustering"),
+    "sortkey": (0.85, "SORTKEY has no direct Databricks equivalent — consider Z-ORDER BY on this column"),
+}
+
+REVIEW_THRESHOLD = 0.70
+VERIFY_THRESHOLD = 0.90
 
 
-def _column_score(col: dict) -> dict:
+def _column_score(col: dict, pipeline: str) -> dict:
     t = (col.get("type") or "").upper()
-    base, target, note = TYPE_CONFIDENCE.get(t, (0.30, "VARCHAR", f"Unrecognized type '{t}' — manual mapping required"))
+    table_map = TYPE_CONFIDENCE.get(pipeline, TYPE_CONFIDENCE_MYSQL_SNOWFLAKE)
+    fallback_target = "STRING" if pipeline == "redshift_databricks" else "VARCHAR"
+    base, target, note = table_map.get(t, (0.30, fallback_target, f"Unrecognized type '{t}' — manual mapping required"))
+    reasons = [note]
+    if col.get("distkey"):
+        pen, msg = ATTRIBUTE_PENALTIES["distkey"]
+        base = min(base, pen)
+        reasons.append(msg)
+    if col.get("sortkey"):
+        pen, msg = ATTRIBUTE_PENALTIES["sortkey"]
+        base = min(base, pen)
+        reasons.append(msg)
     return {
         "column": col["name"],
         "sourceType": t,
-        "snowflakeType": target,
+        "targetType": target,
         "confidence": base,
-        "note": note,
+        "note": " ".join(reasons),
     }
 
 
 def _level(conf: float) -> str:
     if conf < REVIEW_THRESHOLD:
-        return "review"        
+        return "review"
     if conf < VERIFY_THRESHOLD:
-        return "verify"        
-    return "auto"              
+        return "verify"
+    return "auto"
 
 
-def score_conversion(original_schema: dict, converted_tables: list, validation: dict) -> dict:
-    """Return a full scoring object: per-table, per-column, overall + review list."""
+def score_conversion(original_schema: dict, converted_tables: list, validation: dict, pipeline: str) -> dict:
     diff_by_table = {}
     for d in validation.get("diffIssues", []):
         diff_by_table.setdefault(d["table"].upper(), []).append(d)
@@ -73,27 +120,22 @@ def score_conversion(original_schema: dict, converted_tables: list, validation: 
     total_cols = 0
 
     for table in original_schema["tables"]:
-        cols = [_column_score(c) for c in table["columns"]]
+        cols = [_column_score(c, pipeline) for c in table["columns"]]
         col_confs = [c["confidence"] for c in cols] or [1.0]
         table_conf = sum(col_confs) / len(col_confs)
 
         reasons = []
-        # Structural problems are severe — a dropped column can mean silent data loss.
         if diff_by_table.get(table["name"].upper()):
             table_conf = min(table_conf, 0.20)
             reasons.append("Structural diff found missing column(s) vs the source schema")
-        # Business-rule violations cap confidence.
         if rule_by_table.get(table["name"].upper()):
             table_conf = min(table_conf, 0.55)
             reasons.append("Business-rule violation on this table")
-        # Syntax failure zeroes it out until fixed.
         if any(table["name"].upper() in bad for bad in syntax_bad):
             table_conf = 0.0
             reasons.append("Converted DDL failed syntax validation")
 
         table_conf = round(table_conf, 2)
-        # Conservative level: a high average must not hide a weak column. If any
-        # column falls below a threshold, the table inherits that lower level.
         level = _level(table_conf)
         worst_col = min(col_confs)
         if worst_col < REVIEW_THRESHOLD or reasons:
@@ -101,14 +143,13 @@ def score_conversion(original_schema: dict, converted_tables: list, validation: 
         elif worst_col < VERIFY_THRESHOLD and level == "auto":
             level = "verify"
 
-
         for c in cols:
             if c["confidence"] < VERIFY_THRESHOLD:
                 review_items.append({
                     "table": table["name"],
                     "column": c["column"],
                     "sourceType": c["sourceType"],
-                    "snowflakeType": c["snowflakeType"],
+                    "targetType": c["targetType"],
                     "confidence": c["confidence"],
                     "level": _level(c["confidence"]),
                     "note": c["note"],
@@ -129,7 +170,6 @@ def score_conversion(original_schema: dict, converted_tables: list, validation: 
     review_items.sort(key=lambda x: x["confidence"])
 
     review_required = sum(1 for r in review_items if r["level"] == "review")
-    
     overall_level = _level(overall)
     if review_required > 0:
         overall_level = "review"

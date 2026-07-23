@@ -1,14 +1,14 @@
 
 import re
-import os
 from datetime import datetime, timezone
+from app import config
 
 _deployed = []
 
 
 def dry_run(ddl_statements: list) -> list:
-    if os.getenv("SNOWFLAKE_MODE", "mock") == "real":
-        from .real_snowflake import dry_run as real_dry
+    if config.get("DATABRICKS_MODE", "mock") == "real":
+        from .real_databricks import dry_run as real_dry
         return real_dry(ddl_statements)
     return [
         {"statement": s[:80] + ("..." if len(s) > 80 else ""), "dryRunStatus": "ok"}
@@ -17,12 +17,12 @@ def dry_run(ddl_statements: list) -> list:
 
 
 def deploy(ddl_statements: list, run_id: str) -> dict:
-    if os.getenv("SNOWFLAKE_MODE", "mock") == "real":
-        from .real_snowflake import deploy as real_deploy
+    if config.get("DATABRICKS_MODE", "mock") == "real":
+        from .real_databricks import deploy as real_deploy
         return real_deploy(ddl_statements, run_id)
     created = []
     for stmt in ddl_statements:
-        m = re.search(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+"?(\w+)"?', stmt, re.I)
+        m = re.search(r'CREATE\s+(?:OR\s+REPLACE\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([\w.]+)`?', stmt, re.I)
         name = m.group(1) if m else "UNKNOWN_OBJECT"
         _deployed.append({"runId": run_id, "objectName": name,
                           "deployedAt": datetime.now(timezone.utc).isoformat()})

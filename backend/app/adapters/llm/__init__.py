@@ -1,118 +1,151 @@
-"""LLM adapter for the Convert agent.
 
-- groq   : real Groq llama-3.3-70b (needs GROQ_API_KEY)
-- cortex : Snowflake Cortex COMPLETE (runs inside Snowflake)
-- mock   : deterministic offline converter (no key/network)
-
-If groq is selected but no key is present, we fall back to mock so the
-pipeline still runs end to end instead of crashing.
-"""
 import os
 import json
 from app import config
 
 
-# ---------------- Deterministic mock converter ----------------
+# ---------------- Deterministic mock converter — MySQL -> Snowflake ----------------
 
-def _map_type(col: dict) -> dict:
+def _map_type_mysql_snowflake(col: dict) -> dict:
     t = (col.get("type") or "").upper()
     length = col.get("length")
     precision = col.get("precision")
     scale = col.get("scale")
     if t == "VARCHAR":
-        return {"snowflake": f"VARCHAR({length})" if length else "VARCHAR"}
+        return {"target": f"VARCHAR({length})" if length else "VARCHAR"}
     if t == "CHAR":
-        return {"snowflake": f"CHAR({length})" if length else "CHAR"}
+        return {"target": f"CHAR({length})" if length else "CHAR"}
     if t in ("TEXT", "MEDIUMTEXT", "LONGTEXT", "TINYTEXT"):
-        return {"snowflake": "VARCHAR"}
+        return {"target": "VARCHAR"}
     if t in ("INT", "INTEGER"):
-        return {"snowflake": "NUMBER(10,0)"}
+        return {"target": "NUMBER(10,0)"}
     if t == "BIGINT":
-        return {"snowflake": "NUMBER(19,0)"}
+        return {"target": "NUMBER(19,0)"}
     if t == "SMALLINT":
-        return {"snowflake": "NUMBER(5,0)"}
+        return {"target": "NUMBER(5,0)"}
     if t == "TINYINT":
-        return {"snowflake": "NUMBER(3,0)"}
+        return {"target": "NUMBER(3,0)"}
     if t in ("DECIMAL", "NUMERIC"):
         if precision is not None and scale is not None:
-            return {"snowflake": f"NUMBER({precision},{scale})"}
+            return {"target": f"NUMBER({precision},{scale})"}
         if length is not None:
-            return {"snowflake": f"NUMBER({length},0)"}
-        return {"snowflake": "NUMBER"}
+            return {"target": f"NUMBER({length},0)"}
+        return {"target": "NUMBER"}
     if t in ("FLOAT", "DOUBLE"):
-        return {"snowflake": "FLOAT"}
+        return {"target": "FLOAT"}
     if t == "DATE":
-        return {"snowflake": "DATE"}
+        return {"target": "DATE"}
     if t in ("DATETIME", "TIMESTAMP"):
-        return {"snowflake": "TIMESTAMP_NTZ"}
+        return {"target": "TIMESTAMP_NTZ"}
     if t in ("BOOLEAN", "BOOL"):
-        return {"snowflake": "BOOLEAN"}
+        return {"target": "BOOLEAN"}
     if t in ("BLOB", "TINYBLOB", "MEDIUMBLOB", "LONGBLOB"):
-        return {"snowflake": "BINARY",
+        return {"target": "BINARY",
                 "warning": f"{col['name']} converted from {t} to BINARY; verify binary handling"}
     if t == "JSON":
-        return {"snowflake": "VARIANT",
+        return {"target": "VARIANT",
                 "warning": f"{col['name']} converted from JSON to VARIANT; verify downstream parsing logic",
                 "unmapped": True}
     if t == "ENUM":
-        return {"snowflake": "VARCHAR",
-                "warning": f"{col['name']} converted from ENUM to VARCHAR; the ENUM value check is not enforced in Snowflake",
+        return {"target": "VARCHAR",
+                "warning": f"{col['name']} converted from ENUM to VARCHAR; the ENUM value check is not enforced",
                 "unmapped": True}
     if t == "SET":
-        return {"snowflake": "VARCHAR",
+        return {"target": "VARCHAR",
                 "warning": f"{col['name']} converted from SET to VARCHAR; no direct Snowflake equivalent",
                 "unmapped": True}
     if t == "YEAR":
-        return {"snowflake": "NUMBER(4,0)",
+        return {"target": "NUMBER(4,0)",
                 "warning": f"{col['name']} converted from YEAR to NUMBER(4,0); confirm downstream usage",
                 "unmapped": True}
-    return {"snowflake": t or "VARCHAR"}
+    return {"target": t or "VARCHAR"}
 
 
-def _constraint_clauses(raw_ddl: str) -> list:
-    if not raw_ddl:
-        return []
-    inner = raw_ddl[raw_ddl.find("(") + 1: raw_ddl.rfind(")")]
-    parts, depth, cur = [], 0, ""
-    for ch in inner:
-        if ch == "(":
-            depth += 1
-        elif ch == ")":
-            depth -= 1
-        if ch == "," and depth == 0:
-            parts.append(cur.strip())
-            cur = ""
-        else:
-            cur += ch
-    if cur.strip():
-        parts.append(cur.strip())
-    return [p for p in parts if p.upper().startswith("CONSTRAINT")]
-
-
-def _build_ddl(table: dict) -> str:
+def _build_ddl_mysql_snowflake(table: dict) -> str:
     col_defs = []
     for col in table["columns"]:
-        snow = _map_type(col)["snowflake"]
+        mapped = _map_type_mysql_snowflake(col)["target"]
         null = " NOT NULL" if col.get("nullable") is False else ""
-        col_defs.append(f"{col['name']} {snow}{null}")
-    clauses = col_defs + _constraint_clauses(table.get("rawDdl", ""))
-    return f"CREATE TABLE {table['name']} ({', '.join(clauses)});"
+        col_defs.append(f"{col['name']} {mapped}{null}")
+    return f"CREATE TABLE {table['name']} ({', '.join(col_defs)});"
 
 
-def _mock_complete(schema: dict) -> str:
+# ---------------- Deterministic mock converter — Redshift -> Databricks ----------------
+
+def _map_type_redshift_databricks(col: dict) -> dict:
+    t = (col.get("type") or "").upper()
+    precision = col.get("precision")
+    scale = col.get("scale")
+    if t in ("VARCHAR", "CHARACTER VARYING", "CHAR", "CHARACTER"):
+        return {"target": "STRING"}
+    if t in ("INTEGER", "INT4", "INT"):
+        return {"target": "INT"}
+    if t in ("BIGINT", "INT8"):
+        return {"target": "BIGINT"}
+    if t in ("SMALLINT", "INT2"):
+        return {"target": "SMALLINT"}
+    if t in ("DECIMAL", "NUMERIC"):
+        if precision is not None and scale is not None:
+            return {"target": f"DECIMAL({precision},{scale})"}
+        return {"target": "DECIMAL"}
+    if t in ("REAL", "FLOAT4"):
+        return {"target": "FLOAT"}
+    if t in ("DOUBLE PRECISION", "FLOAT8", "DOUBLE"):
+        return {"target": "DOUBLE"}
+    if t == "BOOLEAN":
+        return {"target": "BOOLEAN"}
+    if t == "DATE":
+        return {"target": "DATE"}
+    if t in ("TIMESTAMP", "TIMESTAMPTZ"):
+        return {"target": "TIMESTAMP",
+                "warning": f"{col['name']} converted from Redshift {t} to Databricks TIMESTAMP; "
+                           f"Databricks TIMESTAMP is timezone-aware, Redshift's is not — verify semantics"}
+    if t == "SUPER":
+        return {"target": "STRING",
+                "warning": f"{col['name']} converted from SUPER to STRING; verify downstream parsing logic "
+                           f"(consider STRUCT/MAP/ARRAY if the shape is known)",
+                "unmapped": True}
+    if t in ("GEOMETRY", "GEOGRAPHY"):
+        return {"target": "STRING",
+                "warning": f"{col['name']} converted from {t} to STRING; no native spatial type in Databricks SQL",
+                "unmapped": True}
+    return {"target": t or "STRING"}
+
+
+def _build_ddl_redshift_databricks(table: dict) -> str:
+    col_defs = []
+    for col in table["columns"]:
+        mapped = _map_type_redshift_databricks(col)["target"]
+        null = " NOT NULL" if col.get("nullable") is False else ""
+        col_defs.append(f"{col['name']} {mapped}{null}")
+    return f"CREATE TABLE {table['name']} ({', '.join(col_defs)}) USING DELTA;"
+
+
+def _mock_complete(schema: dict, pipeline: str) -> str:
+    is_redshift = pipeline == "redshift_databricks"
+    map_fn = _map_type_redshift_databricks if is_redshift else _map_type_mysql_snowflake
+    build_fn = _build_ddl_redshift_databricks if is_redshift else _build_ddl_mysql_snowflake
+
     converted, warnings, unmapped = [], [], []
     for table in schema["tables"]:
         for col in table["columns"]:
-            m = _map_type(col)
+            m = map_fn(col)
             if m.get("warning"):
                 warnings.append({"table": table["name"], "message": m["warning"]})
             if m.get("unmapped"):
                 unmapped.append({"table": table["name"], "column": col["name"],
                                  "sourceType": col.get("type")})
+            if is_redshift and col.get("distkey"):
+                warnings.append({"table": table["name"],
+                                 "message": f"DISTKEY on {col['name']} dropped; no Databricks equivalent "
+                                            f"(consider Z-ORDER BY or liquid clustering)"})
+            if is_redshift and col.get("sortkey"):
+                warnings.append({"table": table["name"],
+                                 "message": f"SORTKEY on {col['name']} dropped; consider Z-ORDER BY ({col['name']}) instead"})
         converted.append({
             "name": table["name"],
             "columns": [c["name"] for c in table["columns"]],
-            "ddl": _build_ddl(table),
+            "ddl": build_fn(table),
         })
     return json.dumps({"converted_tables": converted, "warnings": warnings,
                        "unmapped_types": unmapped})
@@ -131,14 +164,11 @@ def _groq_complete(system_prompt: str, user_prompt: str) -> str:
 
 # ---------------- Public API ----------------
 
-def complete(system_prompt: str, user_prompt: str, schema: dict) -> str:
+def complete(system_prompt: str, user_prompt: str, schema: dict, pipeline: str) -> str:
     provider = config.get("LLM_PROVIDER", "groq")
     if provider == "mock":
-        return _mock_complete(schema)
+        return _mock_complete(schema, pipeline)
     if provider == "groq" and not os.getenv("GROQ_API_KEY"):
         print("[llm] LLM_PROVIDER=groq but GROQ_API_KEY not set — falling back to mock.")
-        return _mock_complete(schema)
-    if provider == "cortex":
-        from .cortex import complete as cortex_complete
-        return cortex_complete(system_prompt, user_prompt)
+        return _mock_complete(schema, pipeline)
     return _groq_complete(system_prompt, user_prompt)
